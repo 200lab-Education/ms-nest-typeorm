@@ -1,0 +1,81 @@
+# Docker compose version
+version: "3.7"
+
+services:
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: microservices-client
+    env_file: 
+      - ./client/.env
+    ports:
+      - 3000:3000
+    networks:
+      - microservices-network
+
+  orders:
+    build:
+      context: ./orders
+      dockerfile: Dockerfile
+    container_name: microservices-order
+    restart: always
+    ports:
+      - 3001:3001
+    env_file:
+      - ./orders/.env
+    networks:
+      - microservices-network
+
+  payment:
+    build:
+      context: ./payment
+      dockerfile: Dockerfile
+    container_name: microservices-payment
+    restart: always
+    ports:
+      - 3002:3002
+    env_file:
+      - ./payment/.env
+    networks:
+      - microservices-network
+    depends_on:
+      - postgres
+
+  postgres:
+    container_name: microservices-postgres
+    image: postgres:12-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: order
+      PGDATA: /data/postgres
+    volumes:
+      - ./payment/src/database/payment-database-init.sh:/docker-entrypoint-initdb.d/payment-database-init.sh
+      - postgres_data:/data/postgres
+    ports:
+      - "5432:5432"
+    restart: unless-stopped
+    networks:
+      - microservices-network
+    tty: true
+
+  redis:
+    image: redis:alpine
+    hostname: redis
+    container_name: microservices-redis
+    ports:
+      - 6379:6379
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge
+volumes:
+  postgres_data:
+  redis_data:
+    driver: local
